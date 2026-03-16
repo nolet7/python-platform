@@ -1,4 +1,4 @@
-name: Python App CI
+name: Python App CI-CD
 
 on:
   push:
@@ -8,16 +8,22 @@ on:
     branches:
       - main
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  IMAGE_NAME: noletengine/python-app
+
 jobs:
   ci:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.10"
 
@@ -27,20 +33,56 @@ jobs:
           pip install -r requirements.txt
 
       - name: Syntax check
-        run: |
-          python -m py_compile app.py
+        run: python -m py_compile app.py
 
       - name: Install Helm
-        uses: azure/setup-helm@v4
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          helm version
 
       - name: Lint Helm chart
-        run: |
-          helm lint helm/python-app
+        run: helm lint helm/python-app
 
       - name: Render Helm templates
-        run: |
-          helm template python-app helm/python-app
+        run: helm template python-app helm/python-app
 
-      - name: Build Docker image
-        run: |
-          docker build -t noletengine/python-app:ci .
+      - name: Build Docker image (CI only)
+        if: github.event_name == 'pull_request'
+        run: docker build -t $IMAGE_NAME:ci .
+
+  docker-publish:
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=sha
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
