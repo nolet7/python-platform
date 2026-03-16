@@ -10,6 +10,7 @@ on:
       - 'Dockerfile'
       - 'helm/**'
       - '.github/workflows/ci.yml'
+  workflow_dispatch:
 
 env:
   IMAGE_NAME: noletengine/python-app
@@ -51,17 +52,28 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v5
 
-      - name: Show runner info
+      - name: Install kubectl
         run: |
-          echo "Running on self-hosted ARC runner"
-          whoami
-          pwd
-          kubectl get pods -n default
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          mkdir -p "$HOME/bin"
+          mv kubectl "$HOME/bin/kubectl"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+          "$HOME/bin/kubectl" version --client
 
       - name: Install Helm
         run: |
           curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           helm version
+
+      - name: Show runner info
+        run: |
+          echo "Running on self-hosted ARC runner"
+          whoami
+          pwd
+          echo "PATH=$PATH"
+          kubectl version --client
+          kubectl get pods -A || true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -78,14 +90,15 @@ jobs:
           context: .
           push: true
           tags: |
-            noletengine/python-app:latest
-            noletengine/python-app:${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
 
       - name: Deploy to cluster with Helm
         run: |
           helm upgrade --install python-app ./helm/python-app \
             --namespace default \
-            --set image.repository=noletengine/python-app \
+            --create-namespace \
+            --set image.repository=${{ env.IMAGE_NAME }} \
             --set image.tag=${{ github.sha }}
 
       - name: Verify deployment
