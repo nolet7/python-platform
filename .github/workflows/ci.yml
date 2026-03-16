@@ -30,6 +30,17 @@ jobs:
         run: |
           python -m py_compile app.py
 
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint Helm chart
+        run: |
+          helm lint helm/python-app
+
+      - name: Render Helm templates
+        run: |
+          helm template python-app helm/python-app
+
       - name: Build Docker image
         run: |
           docker build -t noletengine/python-app:ci .
