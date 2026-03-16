@@ -1,9 +1,18 @@
 githubConfigUrl: "https://github.com/nolet7/python-platform"
-
 githubConfigSecret: github-token
 
-minRunners: 0
+runnerScaleSetName: "python-platform-runners"
+
+minRunners: 1
 maxRunners: 3
 
 containerMode:
   type: "dind"
+
+template:
+  spec:
+    serviceAccountName: arc-deployer
+    containers:
+      - name: runner
+        image: ghcr.io/actions/actions-runner:latest
+        command: ["/home/runner/run.sh"]

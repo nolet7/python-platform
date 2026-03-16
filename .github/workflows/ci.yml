@@ -10,25 +10,13 @@ on:
       - 'Dockerfile'
       - 'helm/**'
       - '.github/workflows/ci.yml'
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'app.py'
-      - 'requirements.txt'
-      - 'Dockerfile'
-      - 'helm/**'
-      - '.github/workflows/ci.yml'
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   IMAGE_NAME: noletengine/python-app
 
 jobs:
   ci:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
 
     steps:
       - name: Checkout source
@@ -55,50 +43,25 @@ jobs:
       - name: Lint Helm chart
         run: helm lint helm/python-app
 
-      - name: Render Helm templates
-        run: helm template python-app helm/python-app
-
-      - name: Build Docker image for PR validation
-        if: github.event_name == 'pull_request'
-        run: |
-          docker build -t $IMAGE_NAME:pr-${{ github.sha }} .
-
   deploy:
     runs-on: python-platform-runners
     needs: ci
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout source
         uses: actions/checkout@v5
-        with:
-          persist-credentials: true
 
       - name: Show runner info
         run: |
           echo "Running on self-hosted ARC runner"
-          uname -a
           whoami
           pwd
-
-      - name: Install kubectl
-        run: |
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x kubectl
-          sudo mv kubectl /usr/local/bin/kubectl
-          kubectl version --client
+          kubectl get pods -n default
 
       - name: Install Helm
         run: |
           curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           helm version
-
-      - name: Verify cluster access
-        run: |
-          kubectl get nodes
-          kubectl get pods -A
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -118,25 +81,14 @@ jobs:
             noletengine/python-app:latest
             noletengine/python-app:${{ github.sha }}
 
-      - name: Update Helm values with commit SHA
+      - name: Deploy to cluster with Helm
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
+          helm upgrade --install python-app ./helm/python-app \
+            --namespace default \
+            --set image.repository=noletengine/python-app \
+            --set image.tag=${{ github.sha }}
 
-          p = Path("helm/python-app/values.yaml")
-          text = p.read_text()
-          text = re.sub(r'(?m)^(\\s*tag:\\s*).*$',
-                        r'\\1' + "${{ github.sha }}",
-                        text)
-          p.write_text(text)
-          print(p.read_text())
-          PY
-
-      - name: Commit updated Helm values
+      - name: Verify deployment
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add helm/python-app/values.yaml
-          git diff --cached --quiet || git commit -m "deploy: update image tag to ${{ github.sha }}"
-          git push origin main
+          kubectl get deployment,svc,ingress -n default
+          kubectl rollout status deployment/python-app -n default --timeout=180s
