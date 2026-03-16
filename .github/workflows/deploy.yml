@@ -1,0 +1,35 @@
+name: Deploy to Kind via ARC
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          mkdir -p "$HOME/bin"
+          mv kubectl "$HOME/bin/kubectl"
+          echo "$HOME/bin" >> $GITHUB_PATH
+          "$HOME/bin/kubectl" version --client
+
+      - name: Verify runner
+        run: |
+          echo "Running on self-hosted ARC runner"
+          whoami
+          pwd
+
+      - name: Check kubectl
+        run: |
+          kubectl version --client
+          kubectl get pods -A
