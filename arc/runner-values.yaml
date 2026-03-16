@@ -1,0 +1,9 @@
+githubConfigUrl: "https://github.com/nolet7/python-platform"
+
+githubConfigSecret: github-token
+
+minRunners: 0
+maxRunners: 3
+
+containerMode:
+  type: "dind"
