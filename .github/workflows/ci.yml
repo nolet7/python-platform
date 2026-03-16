@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'src/app.py'
+      - 'app.py'
       - 'requirements.txt'
       - 'Dockerfile'
       - 'helm/**'
@@ -14,7 +14,7 @@ on:
     branches:
       - main
     paths:
-      - 'src/app.py'
+      - 'app.py'
       - 'requirements.txt'
       - 'Dockerfile'
       - 'helm/**'
@@ -34,6 +34,12 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v5
 
+      - name: Show repo files
+        run: |
+          pwd
+          ls -la
+          find . -maxdepth 3 -type f
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -45,7 +51,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Syntax check
-        run: python -m py_compile src/app.py
+        run: python -m py_compile app.py
 
       - name: Install Helm
         run: |
