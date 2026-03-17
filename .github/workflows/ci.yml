@@ -92,37 +92,42 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Install Python YAML dependency
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install pyyaml
-
       - name: Update Helm values image tag
+        shell: bash
         run: |
-          python3 - <<'PY'
-          import yaml
-          from pathlib import Path
+          TAG="${{ needs.ci.outputs.commit_id }}"
 
-          values_path = Path("helm/python-app/values.yaml")
-          data = yaml.safe_load(values_path.read_text())
+          grep -q '^image:' "${{ env.VALUES_FILE }}" || {
+            echo "image:" >> "${{ env.VALUES_FILE }}"
+            echo "  repository: ${{ env.IMAGE_NAME }}" >> "${{ env.VALUES_FILE }}"
+            echo "  tag: ${TAG}" >> "${{ env.VALUES_FILE }}"
+            echo "  pullPolicy: IfNotPresent" >> "${{ env.VALUES_FILE }}"
+          }
 
-          data.setdefault("image", {})
-          data["image"]["repository"] = "noletengine/python-app"
-          data["image"]["tag"] = "${{ needs.ci.outputs.commit_id }}"
+          if grep -q '^  repository:' "${{ env.VALUES_FILE }}"; then
+            sed -i 's|^  repository:.*|  repository: ${{ env.IMAGE_NAME }}|' "${{ env.VALUES_FILE }}"
+          else
+            sed -i '/^image:/a\  repository: ${{ env.IMAGE_NAME }}' "${{ env.VALUES_FILE }}"
+          fi
 
-          values_path.write_text(yaml.safe_dump(data, sort_keys=False))
-          PY
+          if grep -q '^  tag:' "${{ env.VALUES_FILE }}"; then
+            sed -i "s|^  tag:.*|  tag: ${TAG}|" "${{ env.VALUES_FILE }}"
+          else
+            sed -i "/^image:/a\  tag: ${TAG}" "${{ env.VALUES_FILE }}"
+          fi
 
           echo "Updated values.yaml:"
-          cat helm/python-app/values.yaml
+          cat "${{ env.VALUES_FILE }}"
 
       - name: Commit values update
+        shell: bash
         run: |
-          git add helm/python-app/values.yaml
+          git add "${{ env.VALUES_FILE }}"
           git diff --cached --quiet || git commit -m "Update python-app image tag to ${{ needs.ci.outputs.commit_id }}"
           git push origin main
 
       - name: Install Argo CD CLI
+        shell: bash
         run: |
           curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
           chmod +x argocd
@@ -130,6 +135,7 @@ jobs:
           argocd version --client
 
       - name: Login to Argo CD
+        shell: bash
         run: |
           argocd login argocd.test.com \
             --username admin \
@@ -138,6 +144,7 @@ jobs:
             --grpc-web
 
       - name: Sync app
+        shell: bash
         run: |
           argocd app sync python-app --grpc-web
           argocd app wait python-app --health --sync --grpc-web --timeout 180
