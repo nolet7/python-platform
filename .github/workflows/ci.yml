@@ -30,6 +30,7 @@ jobs:
 
       - name: Set short commit id
         id: vars
+        shell: bash
         run: |
           echo "commit_id=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
@@ -90,6 +91,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Install Python YAML dependency
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml
 
       - name: Update Helm values image tag
         run: |
