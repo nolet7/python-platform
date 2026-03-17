@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: noletengine/python-app
-  tag: 981ab2e
+  tag: 9123ae6
   pullPolicy: IfNotPresent
 
 service:
