@@ -5,7 +5,7 @@ import os
 
 app = Flask(__name__)
 
-APP_NAME = "python-app"
+APP_NAME = "Tech Reliant Services"
 APP_VERSION = "v2"
 
 

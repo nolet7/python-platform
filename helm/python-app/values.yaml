@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: noletengine/python-app
-  tag: a0cf87e
+  tag: techreliant-202605252246
   pullPolicy: Always
 
 service:
