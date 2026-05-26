@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ app_name }} | Platform Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Chromalloy Apex Implementation</p>
+          <h1 id="page-title">{{ app_name }}</h1>
+          <p class="lede">
+            A lightweight operations view for the Python platform service,
+            ready to ship through the existing container, Helm, and Argo CD flow.
+          </p>
+        </div>
+        <div class="status-panel" aria-live="polite">
+          <span class="status-dot" id="health-dot"></span>
+          <div>
+            <p class="status-label">Service Status</p>
+            <strong id="health-status">Checking</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="metrics" aria-label="Application details">
+        <article>
+          <span>Version</span>
+          <strong id="app-version">{{ app_version }}</strong>
+        </article>
+        <article>
+          <span>Environment</span>
+          <strong id="app-env">{{ environment }}</strong>
+        </article>
+        <article>
+          <span>Hostname</span>
+          <strong id="hostname">Loading</strong>
+        </article>
+        <article>
+          <span>Server Time</span>
+          <strong id="server-time">Loading</strong>
+        </article>
+      </section>
+
+      <section class="workspace" aria-label="Platform workflow">
+        <div class="flow">
+          <div>
+            <span class="step-number">1</span>
+            <h2>Build</h2>
+            <p>GitHub Actions validates Python and Helm, then publishes a tagged container image.</p>
+          </div>
+          <div>
+            <span class="step-number">2</span>
+            <h2>Package</h2>
+            <p>Helm values track the image tag that Argo CD applies into the cluster.</p>
+          </div>
+          <div>
+            <span class="step-number">3</span>
+            <h2>Sync</h2>
+            <p>The develop Argo CD application follows this branch for frontend iteration.</p>
+          </div>
+        </div>
+
+        <aside class="api-panel">
+          <h2>API Routes</h2>
+          <ul id="route-list">
+            <li>/api/v1/details</li>
+            <li>/api/v1/healthz</li>
+            <li>/api/v1/version</li>
+          </ul>
+        </aside>
+      </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>

@@ -4,8 +4,11 @@ on:
   push:
     branches:
       - main
+      - develop
     paths:
       - 'app.py'
+      - 'templates/**'
+      - 'static/**'
       - 'requirements.txt'
       - 'Dockerfile'
       - 'helm/python-app/**'
@@ -23,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       commit_id: ${{ steps.vars.outputs.commit_id }}
+      argocd_app: ${{ steps.vars.outputs.argocd_app }}
 
     steps:
       - name: Checkout source
@@ -33,6 +37,11 @@ jobs:
         shell: bash
         run: |
           echo "commit_id=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          if [ "${GITHUB_REF_NAME}" = "develop" ]; then
+            echo "argocd_app=python-app-develop" >> "$GITHUB_OUTPUT"
+          else
+            echo "argocd_app=python-app" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -124,7 +133,7 @@ jobs:
         run: |
           git add "${{ env.VALUES_FILE }}"
           git diff --cached --quiet || git commit -m "Update python-app image tag to ${{ needs.ci.outputs.commit_id }}"
-          git push origin main
+          git push origin "HEAD:${GITHUB_REF_NAME}"
 
       - name: Install Argo CD CLI
         shell: bash
@@ -147,5 +156,5 @@ jobs:
       - name: Sync app
         shell: bash
         run: |
-          argocd app sync python-app --grpc-web
-          argocd app wait python-app --health --sync --grpc-web --timeout 180
+          argocd app sync "${{ needs.ci.outputs.argocd_app }}" --grpc-web
+          argocd app wait "${{ needs.ci.outputs.argocd_app }}" --health --sync --grpc-web --timeout 180

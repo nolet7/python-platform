@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 import datetime
 import socket
 import os
@@ -11,6 +11,16 @@ APP_VERSION = "v2"
 
 @app.route("/")
 def home():
+    return render_template(
+        "index.html",
+        app_name=APP_NAME,
+        app_version=APP_VERSION,
+        environment=os.getenv("APP_ENV", "dev"),
+    )
+
+
+@app.route("/api/v1")
+def api_index():
     return jsonify({
         "message": "python app is working very good",
         "app": APP_NAME,

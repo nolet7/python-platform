@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: python-app-develop
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/nolet7/python-platform.git
+    targetRevision: develop
+    path: helm/python-app
+    helm:
+      releaseName: python-app
+      values: |
+        ingress:
+          host: python-app-develop.test.com
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: python-app-develop
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
