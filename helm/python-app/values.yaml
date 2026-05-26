@@ -2,8 +2,8 @@ replicaCount: 1
 
 image:
   repository: noletengine/python-app
-  tag: 9123ae6
-  pullPolicy: IfNotPresent
+  tag: a0cf87e
+  pullPolicy: Always
 
 service:
   type: ClusterIP
