@@ -33,6 +33,7 @@ jobs:
       commit_id: ${{ steps.vars.outputs.commit_id }}
       argocd_app: ${{ steps.vars.outputs.argocd_app }}
       namespace: ${{ steps.vars.outputs.namespace }}
+      ingress_host: ${{ steps.vars.outputs.ingress_host }}
 
     steps:
       - name: Checkout source
@@ -45,10 +46,12 @@ jobs:
           echo "commit_id=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           if [ "${GITHUB_REF_NAME}" = "develop" ]; then
             echo "argocd_app=python-app-develop" >> "$GITHUB_OUTPUT"
-            echo "namespace=python-app-develop" >> "$GITHUB_OUTPUT"
+            echo "namespace=python" >> "$GITHUB_OUTPUT"
+            echo "ingress_host=python-app-develop.test.com" >> "$GITHUB_OUTPUT"
           else
             echo "argocd_app=python-app" >> "$GITHUB_OUTPUT"
-            echo "namespace=default" >> "$GITHUB_OUTPUT"
+            echo "namespace=python" >> "$GITHUB_OUTPUT"
+            echo "ingress_host=python-app.test.com" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set up Python
@@ -74,8 +77,9 @@ jobs:
 
       - name: Render Helm manifests
         run: |
-          helm template "${{ env.APP_NAME }}" "${{ env.CHART_PATH }}" \
-            --namespace "${{ steps.vars.outputs.namespace }}"
+          helm template "${{ steps.vars.outputs.argocd_app }}" "${{ env.CHART_PATH }}" \
+            --namespace "${{ steps.vars.outputs.namespace }}" \
+            --set ingress.host="${{ steps.vars.outputs.ingress_host }}"
 
   build_and_push:
     needs: validate
@@ -163,10 +167,11 @@ jobs:
         shell: bash
         run: |
           helm lint "${{ env.CHART_PATH }}"
-          helm template "${{ env.APP_NAME }}" "${{ env.CHART_PATH }}" \
+          helm template "${{ needs.validate.outputs.argocd_app }}" "${{ env.CHART_PATH }}" \
             --namespace "${{ needs.validate.outputs.namespace }}" \
             --set image.repository="${{ env.IMAGE_NAME }}" \
-            --set image.tag="${{ needs.build_and_push.outputs.image_tag }}"
+            --set image.tag="${{ needs.build_and_push.outputs.image_tag }}" \
+            --set ingress.host="${{ needs.validate.outputs.ingress_host }}"
 
       - name: Commit values update
         shell: bash
@@ -203,6 +208,7 @@ jobs:
               --path "${{ env.CHART_PATH }}" \
               --dest-server https://kubernetes.default.svc \
               --dest-namespace "${{ needs.validate.outputs.namespace }}" \
+              --helm-set ingress.host="${{ needs.validate.outputs.ingress_host }}" \
               --sync-policy automated \
               --self-heal \
               --auto-prune \
@@ -212,8 +218,11 @@ jobs:
           argocd app set "${{ needs.validate.outputs.argocd_app }}" \
             --revision "${GITHUB_REF_NAME}" \
             --path "${{ env.CHART_PATH }}" \
+            --dest-server https://kubernetes.default.svc \
+            --dest-namespace "${{ needs.validate.outputs.namespace }}" \
             --helm-set image.repository="${{ env.IMAGE_NAME }}" \
             --helm-set image.tag="${{ needs.build_and_push.outputs.image_tag }}" \
+            --helm-set ingress.host="${{ needs.validate.outputs.ingress_host }}" \
             --sync-option CreateNamespace=true \
             --grpc-web
 

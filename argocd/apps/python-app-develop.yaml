@@ -10,13 +10,13 @@ spec:
     targetRevision: develop
     path: helm/python-app
     helm:
-      releaseName: python-app
+      releaseName: python-app-develop
       values: |
         ingress:
           host: python-app-develop.test.com
   destination:
     server: https://kubernetes.default.svc
-    namespace: python-app-develop
+    namespace: python
   syncPolicy:
     automated:
       prune: true
